@@ -2997,7 +2997,7 @@ if (isSomeString!Source && !is(Source == enum) &&
  *     A $(LREF ConvException) if `source` is empty, if no number could be
  *     parsed, or if an overflow occurred.
  */
-Target parse(Target, Source)(ref Source source)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source source)
 if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum) &&
     isFloatingPoint!Target && !is(Target == enum))
 {
@@ -3031,33 +3031,65 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
 
     enforce(!p.empty, bailOut());
 
+    static if (doCount)
+    {
+        size_t count = 0;
+    }
+
     bool sign = false;
     switch (p.front)
     {
     case '-':
         sign = true;
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty, bailOut());
         if (toLower(p.front) == 'i')
             goto case 'i';
         break;
     case '+':
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty, bailOut());
         break;
     case 'i': case 'I':
         // inf
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty && toUpper(p.front) == 'N',
                bailOut("error converting input to floating point"));
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty && toUpper(p.front) == 'F',
                bailOut("error converting input to floating point"));
         // skip past the last 'f'
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         static if (isNarrowString!Source)
             source = cast(Source) p;
-        return sign ? -Target.infinity : Target.infinity;
+        static if (doCount)
+        {
+            return tuple(sign ? -Target.infinity : Target.infinity, count);
+        }
+        else
+        {
+            return sign ? -Target.infinity : Target.infinity;
+        }
     default: {}
     }
 
@@ -3065,31 +3097,68 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     bool startsWithZero = p.front == '0';
     if (startsWithZero)
     {
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         if (p.empty)
         {
             static if (isNarrowString!Source)
                 source = cast(Source) p;
-            return sign ? -0.0 : 0.0;
+            static if (doCount)
+            {
+                return tuple(cast (Target) (sign ? -0.0 : 0.0), count);
+            }
+            else
+            {
+                return sign ? -0.0 : 0.0;
+            }
         }
 
         isHex = p.front == 'x' || p.front == 'X';
-        if (isHex) p.popFront();
+        if (isHex)
+        {
+            static if (doCount)
+            {
+                ++count;
+            }
+            p.popFront();
+        }
     }
     else if (toLower(p.front) == 'n')
     {
         // nan
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty && toUpper(p.front) == 'A',
                bailOut("error converting input to floating point"));
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty && toUpper(p.front) == 'N',
                bailOut("error converting input to floating point"));
         // skip past the last 'n'
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         static if (isNarrowString!Source)
             source = cast(Source) p;
-        return typeof(return).nan;
+        static if (doCount)
+        {
+            return tuple(Target.nan, count);
+        }
+        else
+        {
+            return typeof(return).nan;
+        }
     }
 
     /*
@@ -3167,12 +3236,20 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
                     exp += expIter;
                 }
                 exp -= dot;
+                static if (doCount)
+                {
+                    ++count;
+                }
                 p.popFront();
                 if (p.empty)
                     break;
                 i = p.front;
                 if (i == '_')
                 {
+                    static if (doCount)
+                    {
+                        ++count;
+                    }
                     p.popFront();
                     if (p.empty)
                         break;
@@ -3181,6 +3258,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
             }
             if (i == '.' && !dot)
             {
+                static if (doCount)
+                {
+                    ++count;
+                }
                 p.popFront();
                 dot += expIter;
             }
@@ -3205,13 +3286,21 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         char sexp = 0;
         int e = 0;
 
+        static if (doCount)
+        {
+            ++count;
+        }
         p.popFront();
         enforce(!p.empty, new ConvException("Unexpected end of input"));
         switch (p.front)
         {
             case '-':    sexp++;
                          goto case;
-            case '+':    p.popFront();
+            case '+':    static if (doCount)
+                         {
+                             ++count;
+                         }
+                         p.popFront();
                          break;
             default: {}
         }
@@ -3221,6 +3310,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
             if (e < 0x7FFFFFFF / 10 - 10)   // prevent integer overflow
             {
                 e = e * 10 + p.front - '0';
+            }
+            static if (doCount)
+            {
+                ++count;
             }
             p.popFront();
             sawDigits = true;
@@ -3237,7 +3330,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         import std.math : ldexp;
 
         // Exponent is power of 2, not power of 10
-        ldval = ldexp(ldval,exp);
+        ldval = ldexp(ldval, exp);
     }
     else if (ldval)
     {
@@ -3272,7 +3365,14 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
 
     static if (isNarrowString!Source)
         source = cast(Source) p;
-    return sign ? -ldval : ldval;
+    static if (doCount)
+    {
+        return tuple(cast (Target) (sign ? -ldval : ldval), count);
+    }
+    else
+    {
+        return sign ? -ldval : ldval;
+    }
 }
 
 ///
@@ -3280,8 +3380,13 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
 {
     import std.math : approxEqual;
     auto str = "123.456";
-
     assert(parse!double(str).approxEqual(123.456));
+    auto str2 = "123.456";
+    assert(parse!(double, string, No.doCount)(str2).approxEqual(123.456));
+    auto str3 = "123.456";
+    auto r = parse!(double, string, Yes.doCount)(str3);
+    assert(r[0].approxEqual(123.456));
+    assert(r[1] == 7);
 }
 
 @safe unittest
@@ -3381,10 +3486,24 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     real pi = 3.1415926535897932384626433832795028841971693993751L;
     string fullPrecision = "3.1415926535897932384626433832795028841971693993751";
     assert(feq(parse!real(fullPrecision), pi, 2*real.epsilon));
+    string fullPrecision2 = "3.1415926535897932384626433832795028841971693993751";
+    assert(feq(parse!(real, string, No.doCount)(fullPrecision2), pi, 2*real.epsilon));
+    string fullPrecision3= "3.1415926535897932384626433832795028841971693993751";
+    auto len = fullPrecision3.length;
+    auto res = parse!(real, string, Yes.doCount)(fullPrecision3);
+    assert(feq(res[0], pi, 2*real.epsilon));
+    assert(res[1] == len);
 
     real x = 0x1.FAFAFAFAFAFAFAFAFAFAFAFAFAFAFAFAAFAAFAFAFAFAFAFAFAP-252L;
     string full = "0x1.FAFAFAFAFAFAFAFAFAFAFAFAFAFAFAFAAFAAFAFAFAFAFAFAFAP-252";
     assert(parse!real(full) == x);
+    string full2 = "0x1.FAFAFAFAFAFAFAFAFAFAFAFAFAFAFAFAAFAAFAFAFAFAFAFAFAP-252";
+    assert(parse!(real, string, No.doCount)(full2) == x);
+    string full3 = "0x1.FAFAFAFAFAFAFAFAFAFAFAFAFAFAFAFAAFAAFAFAFAFAFAFAFAP-252";
+    auto len2 = full3.length;
+    auto res2 = parse!(real, string, Yes.doCount)(full3);
+    assert(res2[0] == x);
+    assert(res2[1] == len2);
 }
 
 // Tests for the double implementation
