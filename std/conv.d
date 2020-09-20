@@ -53,6 +53,7 @@ public import std.ascii : LetterCase;
 import std.meta;
 import std.range.primitives;
 import std.traits;
+import std.typecons: Flag, Yes, No, tuple;
 
 // Same as std.string.format, but "self-importing".
 // Helps reduce code and imports, particularly in static asserts.
@@ -2184,7 +2185,7 @@ Note:
     All character input range conversions using $(LREF to) are forwarded
     to `parse` and do not require lvalues.
 */
-Target parse(Target, Source)(ref Source source)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source source)
 if (isInputRange!Source &&
     isSomeChar!(ElementType!Source) &&
     is(immutable Target == immutable bool))
@@ -2218,7 +2219,15 @@ if (isInputRange!Source &&
             static if (isNarrowString!Source)
                 source = cast(Source) s;
 
-            return result;
+            static if (doCount)
+            {
+                //import typecons: tuple;
+                return tuple(result, 4);
+            }
+            else
+            {
+                return result;
+            }
         }
     }
 Lerr:
@@ -2231,6 +2240,13 @@ Lerr:
     auto s = "true";
     bool b = parse!bool(s);
     assert(b);
+    auto s2 = "true";
+    bool b2 = parse!(bool, string, No.doCount)(s2);
+    assert(b2);
+    auto s3 = "true";
+    auto b3 = parse!(bool, string, Yes.doCount)(s3);
+    assert(b3[0]);
+    assert(b3[1] == 4);
 }
 
 @safe unittest
