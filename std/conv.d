@@ -3700,7 +3700,7 @@ Returns:
 Throws:
     A $(LREF ConvException) if the range is empty.
  */
-Target parse(Target, Source)(ref Source s)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isSomeString!Source && !is(Source == enum) &&
     staticIndexOf!(immutable Target, immutable dchar, immutable ElementEncodingType!Source) >= 0)
 {
@@ -3710,14 +3710,29 @@ if (isSomeString!Source && !is(Source == enum) &&
     {
         Target result = s.front;
         s.popFront();
-        return result;
+        static if (doCount)
+        {
+            return tuple(result, 1);
+        }
+        else
+        {
+            return result;
+        }
+
     }
     else
     {
         // Special case: okay so parse a Char off a Char[]
         Target result = s[0];
         s = s[1 .. $];
-        return result;
+        static if (doCount)
+        {
+            return tuple(result, 1);
+        }
+        else
+        {
+            return result;
+        }
     }
 }
 
@@ -3733,6 +3748,10 @@ if (isSomeString!Source && !is(Source == enum) &&
                 Str s = "aaa";
                 assert(parse!Char(s) == 'a');
                 assert(s == "aa");
+                assert(parse!(Char, typeof(s), No.doCount)(s) == 'a');
+                assert(s == "a");
+                auto r = parse!(Char, typeof(s), Yes.doCount)(s);
+                assert(r[0] == 'a' && r[1] == 1 && s == "");
             }
         }}
     }
@@ -3747,7 +3766,14 @@ if (!isSomeString!Source && isInputRange!Source && isSomeChar!(ElementType!Sourc
         throw convError!(Source, Target)(s);
     Target result = s.front;
     s.popFront();
-    return result;
+    static if (doCount)
+    {
+        return tuple(result, 1);
+    }
+    else
+    {
+        return result;
+    }
 }
 
 ///
@@ -3757,6 +3783,12 @@ if (!isSomeString!Source && isInputRange!Source && isSomeChar!(ElementType!Sourc
     char first = parse!char(s);
     assert(first == 'H');
     assert(s == "ello, World!");
+    char second = parse!(char, string, No.doCount)(s);
+    assert(second == 'e');
+    assert(s == "llo, World!");
+    auto third = parse!(char, string, Yes.doCount)(s);
+    assert(third[0] == 'l' && third[1]);
+    assert(s == "lo, World!");
 }
 
 
