@@ -3371,7 +3371,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     }
     else
     {
-        return sign ? -ldval : ldval;
+        return cast (Target)  (sign ? -ldval : ldval);
     }
 }
 
@@ -3884,7 +3884,7 @@ if (isInputRange!Source &&
 }
 
 //Used internally by parse Array/AA, to remove ascii whites
-package void skipWS(R)(ref R r)
+package auto skipWS(R, Flag!"doCount" doCount = No.doCount)(ref R r)
 {
     import std.ascii : isWhite;
     static if (isSomeString!R)
@@ -3895,16 +3895,44 @@ package void skipWS(R)(ref R r)
             if (!isWhite(c))
             {
                 r = r[i .. $];
-                return;
+                static if (doCount)
+                {
+                    return i;
+                }
+                else
+                {
+                    return;
+                }
             }
         }
+        auto len = r.length;
         r = r[0 .. 0]; //Empty string with correct type.
-        return;
+        static if (doCount)
+        {
+            return len;
+        }
+        else
+        {
+            return;
+        }
     }
     else
     {
+        static if (doCount)
+        {
+            size_t i = 0;
+        }
         for (; !r.empty && isWhite(r.front); r.popFront())
-        {}
+        {
+            static if (doCount)
+            {
+                i++;
+            }
+        }
+        static if (doCount)
+        {
+            return i;
+        }
     }
 }
 
@@ -3930,16 +3958,16 @@ if (isSomeString!Source && !is(Source == enum) &&
 
     auto result = appender!Target();
 
-    static if (doCount)
-    {
-        size_t count = 0;
-    }
     parseCheck!s(lbracket);
     static if (doCount)
     {
-        ++count;
+        size_t count = 1 + skipWS!(Source, Yes.doCount)(s);
+
     }
-    skipWS(s);
+    else
+    {
+        skipWS(s);
+    }
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == rbracket)
@@ -3958,28 +3986,41 @@ if (isSomeString!Source && !is(Source == enum) &&
             return result.data;
         }
     }
-    for (;; s.popFront(), skipWS(s))
+    for (;;)
     {
         if (!s.empty && s.front == rbracket)
             break;
-        result ~= parseElement!(WideElementType!Target)(s);
-        skipWS(s);
+        static if (doCount)
+        {
+            auto r = parseElement!(WideElementType!Target, Source, Yes.doCount)(s);
+            result ~= r[0];
+            count += r[1] + skipWS!(Source, Yes.doCount)(s);
+        }
+        else
+        {
+            result ~= parseElement!(WideElementType!Target)(s);
+            skipWS(s);
+        }
         if (s.empty)
             throw convError!(Source, Target)(s);
         if (s.front != comma)
             break;
+        s.popFront();
         static if (doCount)
         {
-            ++count; //todo in functia asta count nu e bun
+            //popFront() from for body
+            count += 1 + skipWS!(Source, doCount)(s);
         }
+        else
+        {
+            skipWS(s);
+        }
+
     }
     parseCheck!s(rbracket);
     static if (doCount)
     {
-        ++count;
-    }
-    static if (doCount)
-    {
+         ++count;
         return tuple(result.data, count);
     }
     else
@@ -4003,7 +4044,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     auto len3 = s3.length;
     auto a3 = parse!(string[], string, Yes.doCount)(s3);
     assert(a3[0] == ["hello", "world"]);
-    import std.stdio; writeln(a3[1], " ", len3);
+    //import std.stdio; writeln(a3[1], " ", len3);
     assert(a3[1] == len3);
 }
 
@@ -4106,16 +4147,15 @@ if (isExactSomeString!Source &&
     else
         Target result = void;
 
-    static if (doCount)
-    {
-        sie_t count = 0;
-    }
     parseCheck!s(lbracket);
     static if (doCount)
     {
-        ++count;
+        size_t count = 1 + skipWS!(Source, Yes.doCount)(s);
     }
-    skipWS(s);
+    else
+    {
+        skipWS(s);
+    }
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == rbracket)
@@ -4136,12 +4176,21 @@ if (isExactSomeString!Source &&
             }
         }
     }
-    for (size_t i = 0; ; s.popFront(), skipWS(s))
+    for (size_t i = 0; ;)
     {
         if (i == result.length)
             goto Lmanyerr;
-        result[i++] = parseElement!(ElementType!Target)(s);
-        skipWS(s);
+        static if (doCount)
+        {
+            auto r = parseElement!(ElementType!Target, Source, Yes.doCount)(s);
+            result[i++] = r[0];
+            count += r[1] + skipWS!(Source, Yes.doCount)(s);
+        }
+        else
+        {
+            result[i++] = parseElement!(ElementType!Target)(s);
+            skipWS(s);
+        }
         if (s.empty)
             throw convError!(Source, Target)(s);
         if (s.front != comma)
@@ -4150,6 +4199,13 @@ if (isExactSomeString!Source &&
                 goto Lfewerr;
             break;
         }
+        s.popFront();
+        static if (doCount)
+        {
+            ++count; // popFront from for body
+            count += skipWS!(Source, Yes.doCount)(s);
+        }
+        skipWS(s);
     }
     parseCheck!s(rbracket);
     static if (doCount)
@@ -4614,10 +4670,14 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     parseCheck!s('\'');
     static if (doCount)
     {
-        ++count;
+        size_t count = 1;
     }
     if (s.empty)
         throw convError!(Source, Target)(s);
+    static if (doCount)
+    {
+        ++count;
+    }
     if (s.front != '\\')
     {
         c = s.front;
@@ -4629,8 +4689,12 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     static if (doCount)
     {
         ++count;
+        return tuple(c, count);
     }
-    return c;
+    else
+    {
+        return c;
+    }
 }
 
 // ditto
