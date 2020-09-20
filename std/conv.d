@@ -3758,7 +3758,7 @@ if (isSomeString!Source && !is(Source == enum) &&
 }
 
 /// ditto
-Target parse(Target, Source)(ref Source s)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (!isSomeString!Source && isInputRange!Source && isSomeChar!(ElementType!Source) &&
     isSomeChar!Target && Target.sizeof >= ElementType!Source.sizeof && !is(Target == enum))
 {
@@ -3787,7 +3787,7 @@ if (!isSomeString!Source && isInputRange!Source && isSomeChar!(ElementType!Sourc
     assert(second == 'e');
     assert(s == "llo, World!");
     auto third = parse!(char, string, Yes.doCount)(s);
-    assert(third[0] == 'l' && third[1]);
+    assert(third[0] == 'l' && third[1] == 1);
     assert(s == "lo, World!");
 }
 
@@ -3834,7 +3834,7 @@ Returns:
 Throws:
     A $(LREF ConvException) if the range doesn't represent `null`.
  */
-Target parse(Target, Source)(ref Source s)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isInputRange!Source &&
     isSomeChar!(ElementType!Source) &&
     is(immutable Target == immutable typeof(null)))
@@ -3846,7 +3846,14 @@ if (isInputRange!Source &&
             throw parseError("null should be case-insensitive 'null'");
         s.popFront();
     }
-    return null;
+    static if (doCount)
+    {
+        return tuple(null, 4);
+    }
+    else
+    {
+        return null;
+    }
 }
 
 ///
@@ -3862,6 +3869,11 @@ if (isInputRange!Source &&
     auto s2 = "NUll"d;
     assert(parse!NullType(s2) is null);
     assert(s2 == "");
+
+    auto s3 = "nuLlNULl";
+    assert(parse!(NullType, string, No.doCount)(s3) is null);
+    auto r = parse!(NullType, string, Yes.doCount)(s3);
+    assert(r[0] is null && r[1] == 4);
 
     auto m = "maybe";
     assertThrown!ConvException(parse!NullType(m));
