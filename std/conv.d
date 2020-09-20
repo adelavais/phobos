@@ -2888,7 +2888,7 @@ do
  *     A $(LREF ConvException) if type `Target` does not have a member
  *     represented by `s`.
  */
-Target parse(Target, Source)(ref Source s)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isSomeString!Source && !is(Source == enum) &&
     is(Target == enum))
 {
@@ -2911,7 +2911,14 @@ if (isSomeString!Source && !is(Source == enum) &&
     if (longest_match > 0)
     {
         s = s[longest_match .. $];
-        return result ;
+        static if (doCount)
+        {
+            return tuple(result, longest_match);
+        }
+        else
+        {
+            return result;
+        }
     }
 
     throw new ConvException(
@@ -2926,6 +2933,13 @@ if (isSomeString!Source && !is(Source == enum) &&
 
     auto str = "a";
     assert(parse!EnumType(str) == EnumType.a);
+    auto str2 = "a";
+    assert(parse!(EnumType, string, No.doCount)(str2) == EnumType.a);
+    auto str3 = "a";
+    auto r = parse!(EnumType, string, Yes.doCount)(str3);
+    assert(r[0] == EnumType.a);
+    assert(r[1] == 1);
+
 }
 
 @safe unittest
@@ -2962,6 +2976,11 @@ if (isSomeString!Source && !is(Source == enum) &&
     assert(to!A("member111") == A.member111);
     auto s = "member1111";
     assert(parse!A(s) == A.member111 && s == "1");
+    auto s2 = "member1111";
+    assert(parse!(A, string, No.doCount)(s2) == A.member111 && s2 == "1");
+    auto s3 = "member1111";
+    auto r = parse!(A, string, Yes.doCount)(s3);
+    assert(r[0] == A.member111 && r[1] == 9 && s3 == "1");
 }
 
 /**
