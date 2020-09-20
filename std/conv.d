@@ -4260,7 +4260,6 @@ Lfewerr:
  * Returns:
  *     An associative array of type `Target`
  */
- //todo adela functia asta
 auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[',
                              dchar rbracket = ']', dchar keyval = ':', dchar comma = ',')
 if (isSomeString!Source && !is(Source == enum) &&
@@ -4274,9 +4273,12 @@ if (isSomeString!Source && !is(Source == enum) &&
     parseCheck!s(lbracket);
     static if (doCount)
     {
-        size_t count = 1;
+        size_t count = 1 + skipWS!(Source, Yes.doCount)(s);
     }
-    skipWS(s);
+    else
+    {
+        skipWS(s);
+    }
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == rbracket)
@@ -4294,17 +4296,26 @@ if (isSomeString!Source && !is(Source == enum) &&
     }
     for (;; s.popFront(), skipWS(s))
     {
-        auto key = parseElement!KeyType(s);
-        skipWS(s);
-        parseCheck!s(keyval);
         static if (doCount)
         {
-            ++count;
+            auto key = parseElement!(KeyType, Source, Yes.doCount)(s);
+            count += key[1] + skipWS!(Source, Yes.doCount)(s);
+            parseCheck!s(keyval);
+            count += 1 + skipWS!(Source, Yes.doCount)(s);
+            auto val = parseElement!(ValType, Source, Yes.doCount)(s);
+            count += val[1] + skipWS!(Source, Yes.doCount)(s);
+            result[key[0]] = val[0];
         }
-        skipWS(s);
-        auto val = parseElement!ValType(s);
-        skipWS(s);
-        result[key] = val;
+        else
+        {
+            auto key = parseElement!KeyType(s);
+            skipWS(s);
+            parseCheck!s(keyval);
+            skipWS(s);
+            auto val = parseElement!ValType(s);
+            skipWS(s);
+            result[key] = val;
+        }
         if (s.empty)
             throw convError!(Source, Target)(s);
         if (s.front != comma)
