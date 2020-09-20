@@ -2375,17 +2375,27 @@ Throws:
     A $(LREF ConvException) If an overflow occurred during conversion or
     if no character of the input was meaningfully converted.
 */
-Target parse(Target, Source)(ref Source s)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isSomeChar!(ElementType!Source) &&
     isIntegral!Target && !is(Target == enum))
 {
     static if (Target.sizeof < int.sizeof)
     {
         // smaller types are handled like integers
-        auto v = .parse!(Select!(Target.min < 0, int, uint))(s);
-        auto result = ()@trusted{ return cast(Target) v; }();
-        if (result == v)
-            return result;
+        static if (doCount)
+        {
+            auto v = .parse!(Select!(Target.min < 0, int, uint), Source, Yes.doCount)(s);
+            auto result = ()@trusted{ return cast(Target) v[0]; }();
+            if (result == v[0])
+                return v; // todo adela era result
+        }
+        else
+        {
+            auto v = .parse!(Select!(Target.min < 0, int, uint))(s);
+            auto result = ()@trusted{ return cast(Target) v; }();
+            if (result == v)
+                return result;
+        }
         throw new ConvOverflowException("Overflow in integral conversion");
     }
     else
@@ -2410,6 +2420,11 @@ if (isSomeChar!(ElementType!Source) &&
             alias source = s;
         }
 
+        static if (doCount)
+        {
+            size_t count = 0;
+        }
+
         if (source.empty)
             goto Lerr;
 
@@ -2423,6 +2438,10 @@ if (isSomeChar!(ElementType!Source) &&
                     sign = true;
                     goto case '+';
                 case '+':
+                    static if (doCount)
+                    {
+                        ++count;
+                    }
                     source.popFront();
 
                     if (source.empty)
@@ -2441,6 +2460,10 @@ if (isSomeChar!(ElementType!Source) &&
         {
             Target v = cast(Target) c;
 
+            static if (doCount)
+            {
+                ++count;
+            }
             source.popFront();
 
             while (!source.empty)
@@ -2456,7 +2479,10 @@ if (isSomeChar!(ElementType!Source) &&
                     // Note: `v` can become negative here in case of parsing
                     // the most negative value:
                     v = cast(Target) (v * 10 + c);
-
+                    static if (doCount)
+                    {
+                        ++count;
+                    }
                     source.popFront();
                 }
                 else
@@ -2469,7 +2495,14 @@ if (isSomeChar!(ElementType!Source) &&
             static if (isNarrowString!Source)
                 s = cast(Source) source;
 
-            return v;
+            static if (doCount)
+            {
+                return tuple(v, count);
+            }
+            else
+            {
+                return v;
+            }
         }
 Lerr:
         static if (isNarrowString!Source)
@@ -2485,6 +2518,10 @@ Lerr:
     string s = "123";
     auto a = parse!int(s);
     assert(a == 123);
+
+    string s1 = "123";
+    auto a1 = parse!(int, string, Yes.doCount)(s1);
+    assert(a1[0] == 123 && a1[1] == 3);
 
     // parse only accepts lvalues
     static assert(!__traits(compiles, parse!int("123")));
@@ -2746,7 +2783,7 @@ Lerr:
 }
 
 /// ditto
-Target parse(Target, Source)(ref Source source, uint radix)
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source source, uint radix)
 if (isSomeChar!(ElementType!Source) &&
     isIntegral!Target && !is(Target == enum))
 in
@@ -2759,7 +2796,16 @@ do
     import std.exception : enforce;
 
     if (radix == 10)
-        return parse!Target(source);
+    {
+        static if (doCount)
+        {
+            return parse!(Target, Source, doCount)(source);
+        }
+        else
+        {
+            return parse!Target(source);
+        }
+    }
 
     enforce!ConvException(!source.empty, "s must not be empty in integral parse");
 
@@ -2776,6 +2822,10 @@ do
         alias s = source;
     }
 
+    static if (doCount)
+    {
+        size_t count = 0;
+    }
     auto found = false;
     do
     {
@@ -2802,6 +2852,10 @@ do
         auto nextv = v.mulu(radix, overflow).addu(c - '0', overflow);
         enforce!ConvOverflowException(!overflow && nextv <= Target.max, "Overflow in integral conversion");
         v = cast(Target) nextv;
+        static if (doCount)
+        {
+            ++count;
+        }
         s.popFront();
         found = true;
     } while (!s.empty);
@@ -2817,7 +2871,14 @@ do
     static if (isNarrowString!Source)
         source = cast(Source) s;
 
-    return v;
+    static if (doCount)
+    {
+        return tuple(v, count);
+    }
+    else
+    {
+        return v;
+    }
 }
 
 @safe pure unittest
@@ -4008,7 +4069,6 @@ if (isSomeString!Source && !is(Source == enum) &&
         s.popFront();
         static if (doCount)
         {
-            //popFront() from for body
             count += 1 + skipWS!(Source, doCount)(s);
         }
         else
@@ -4176,7 +4236,7 @@ if (isExactSomeString!Source &&
             }
         }
     }
-    for (size_t i = 0; ;)
+    for (size_t i = 0;;)
     {
         if (i == result.length)
             goto Lmanyerr;
@@ -4202,7 +4262,7 @@ if (isExactSomeString!Source &&
         s.popFront();
         static if (doCount)
         {
-            ++count; // popFront from for body
+            ++count;
             count += skipWS!(Source, Yes.doCount)(s);
         }
         skipWS(s);
@@ -4210,7 +4270,7 @@ if (isExactSomeString!Source &&
     parseCheck!s(rbracket);
     static if (doCount)
     {
-        ++count; //todo adela toata functia asta
+        ++count;
         return tuple(result, count);
     }
     else
@@ -4294,7 +4354,7 @@ if (isSomeString!Source && !is(Source == enum) &&
             return result;
         }
     }
-    for (;; s.popFront(), skipWS(s))
+    for (;;)
     {
         static if (doCount)
         {
@@ -4320,6 +4380,15 @@ if (isSomeString!Source && !is(Source == enum) &&
             throw convError!(Source, Target)(s);
         if (s.front != comma)
             break;
+        s.popFront();
+        static if (doCount)
+        {
+            count += 1 + skipWS!(Source, Yes.doCount)(s);
+        }
+        else
+        {
+            skipWS(s);
+        }
     }
     parseCheck!s(rbracket);
     static if (doCount)
@@ -4615,9 +4684,6 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         static if (doCount)
         {
             ++count;
-        }
-        static if (doCount)
-        {
             return tuple(result.data, count);
         }
         else
@@ -4685,7 +4751,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     }
     if (s.empty)
         throw convError!(Source, Target)(s);
-    static if (doCount)
+    static if (doCount) // for the following if-else sequence
     {
         ++count;
     }
