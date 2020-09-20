@@ -3922,7 +3922,7 @@ package void skipWS(R)(ref R r)
  * Returns:
  *     An array of type `Target`
  */
-Target parse(Target, Source)(ref Source s, dchar lbracket = '[', dchar rbracket = ']', dchar comma = ',')
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[', dchar rbracket = ']', dchar comma = ',')
 if (isSomeString!Source && !is(Source == enum) &&
     isDynamicArray!Target && !is(Target == enum))
 {
@@ -3930,14 +3930,33 @@ if (isSomeString!Source && !is(Source == enum) &&
 
     auto result = appender!Target();
 
+    static if (doCount)
+    {
+        size_t count = 0;
+    }
     parseCheck!s(lbracket);
+    static if (doCount)
+    {
+        ++count;
+    }
     skipWS(s);
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == rbracket)
     {
+        static if (doCount)
+        {
+            ++count;
+        }
         s.popFront();
-        return result.data;
+        static if (doCount)
+        {
+            return tuple(result.data, count);
+        }
+        else
+        {
+            return result.data;
+        }
     }
     for (;; s.popFront(), skipWS(s))
     {
@@ -3949,14 +3968,28 @@ if (isSomeString!Source && !is(Source == enum) &&
             throw convError!(Source, Target)(s);
         if (s.front != comma)
             break;
+        static if (doCount)
+        {
+            ++count; //todo in functia asta count nu e bun
+        }
     }
     parseCheck!s(rbracket);
-
-    return result.data;
+    static if (doCount)
+    {
+        ++count;
+    }
+    static if (doCount)
+    {
+        return tuple(result.data, count);
+    }
+    else
+    {
+        return result.data;
+    }
 }
 
 ///
-@safe pure unittest
+@safe  unittest
 {
     auto s1 = `[['h', 'e', 'l', 'l', 'o'], "world"]`;
     auto a1 = parse!(string[])(s1);
@@ -3965,6 +3998,13 @@ if (isSomeString!Source && !is(Source == enum) &&
     auto s2 = `["aaa", "bbb", "ccc"]`;
     auto a2 = parse!(string[])(s2);
     assert(a2 == ["aaa", "bbb", "ccc"]);
+
+    auto s3 = `[['h', 'e', 'l', 'l', 'o'], "world"]`;
+    auto len3 = s3.length;
+    auto a3 = parse!(string[], string, Yes.doCount)(s3);
+    assert(a3[0] == ["hello", "world"]);
+    import std.stdio; writeln(a3[1], " ", len3);
+    assert(a3[1] == len3);
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=9615
@@ -4057,7 +4097,7 @@ if (isSomeString!Source && !is(Source == enum) &&
 }
 
 /// ditto
-Target parse(Target, Source)(ref Source s, dchar lbracket = '[', dchar rbracket = ']', dchar comma = ',')
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[', dchar rbracket = ']', dchar comma = ',')
 if (isExactSomeString!Source &&
     isStaticArray!Target && !is(Target == enum))
 {
@@ -4066,7 +4106,15 @@ if (isExactSomeString!Source &&
     else
         Target result = void;
 
+    static if (doCount)
+    {
+        sie_t count = 0;
+    }
     parseCheck!s(lbracket);
+    static if (doCount)
+    {
+        ++count;
+    }
     skipWS(s);
     if (s.empty)
         throw convError!(Source, Target)(s);
@@ -4077,7 +4125,15 @@ if (isExactSomeString!Source &&
         else
         {
             s.popFront();
-            return result;
+            static if (doCount)
+            {
+                ++count;
+                return tuple(result, count);
+            }
+            else
+            {
+                return result;
+            }
         }
     }
     for (size_t i = 0; ; s.popFront(), skipWS(s))
@@ -4096,8 +4152,16 @@ if (isExactSomeString!Source &&
         }
     }
     parseCheck!s(rbracket);
+    static if (doCount)
+    {
+        ++count; //todo adela toata functia asta
+        return tuple(result, count);
+    }
+    else
+    {
+        return result;
+    }
 
-    return result;
 
 Lmanyerr:
     throw parseError(text("Too many elements in input, ", result.length, " elements expected."));
@@ -4140,7 +4204,8 @@ Lfewerr:
  * Returns:
  *     An associative array of type `Target`
  */
-Target parse(Target, Source)(ref Source s, dchar lbracket = '[',
+ //todo adela functia asta
+auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[',
                              dchar rbracket = ']', dchar keyval = ':', dchar comma = ',')
 if (isSomeString!Source && !is(Source == enum) &&
     isAssociativeArray!Target && !is(Target == enum))
@@ -4151,19 +4216,35 @@ if (isSomeString!Source && !is(Source == enum) &&
     Target result;
 
     parseCheck!s(lbracket);
+    static if (doCount)
+    {
+        size_t count = 1;
+    }
     skipWS(s);
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == rbracket)
     {
         s.popFront();
-        return result;
+        static if (doCount)
+        {
+            ++count;
+            return tuple(result, count);
+        }
+        else
+        {
+            return result;
+        }
     }
     for (;; s.popFront(), skipWS(s))
     {
         auto key = parseElement!KeyType(s);
         skipWS(s);
         parseCheck!s(keyval);
+        static if (doCount)
+        {
+            ++count;
+        }
         skipWS(s);
         auto val = parseElement!ValType(s);
         skipWS(s);
@@ -4174,8 +4255,15 @@ if (isSomeString!Source && !is(Source == enum) &&
             break;
     }
     parseCheck!s(rbracket);
-
-    return result;
+    static if (doCount)
+    {
+        ++count;
+        return tuple(result, count);
+    }
+    else
+    {
+        return result;
+    }
 }
 
 ///
@@ -4208,13 +4296,18 @@ if (isSomeString!Source && !is(Source == enum) &&
     int[int] aa = parse!(int[int])(s);
 }
 
-private dchar parseEscape(Source)(ref Source s)
+private auto parseEscape(Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isInputRange!Source && isSomeChar!(ElementType!Source))
 {
     parseCheck!s('\\');
+    static if (doCount)
+    {
+        size_t count = 1;
+    }
     if (s.empty)
         throw parseError("Unterminated escape sequence");
 
+    // consumes 1 Element of type Source
     dchar getHexDigit()(ref Source s_ = s)  // workaround
     {
         import std.ascii : isAlpha, isHexDigit;
@@ -4235,17 +4328,66 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
     if (first >= '0' && first <= '7')
     {
         dchar c1 = s.front;
+        static if (doCount)
+        {
+            ++count;
+        }
         s.popFront();
-        if (s.empty) return c1 - '0';
+        if (s.empty)
+        {
+            static if (doCount)
+            {
+                return tuple(cast (dchar) (c1 - '0'), count);
+            }
+            else
+            {
+                return cast (dchar) (c1 - '0');
+            }
+        }
         dchar c2 = s.front;
-        if (c2 < '0' || c2 > '7') return c1 - '0';
+        if (c2 < '0' || c2 > '7')
+        {
+            static if (doCount)
+            {
+                return tuple(cast (dchar)(c1 - '0'), count);
+            }
+            else
+            {
+                return cast (dchar)(c1 - '0');
+            }
+        }
+        static if (doCount)
+        {
+            ++count;
+        }
         s.popFront();
         dchar c3 = s.front;
-        if (c3 < '0' || c3 > '7') return 8 * (c1 - '0') + (c2 - '0');
+        if (c3 < '0' || c3 > '7')
+        {
+            static if (doCount)
+            {
+                return tuple(cast (dchar) (8 * (c1 - '0') + (c2 - '0')), count);
+            }
+            else
+            {
+                return cast (dchar) (8 * (c1 - '0') + (c2 - '0'));
+            }
+        }
+        static if (doCount)
+        {
+            ++count;
+        }
         s.popFront();
         if (c1 > '3')
             throw parseError("Octal sequence is larger than \\377");
-        return 64 * (c1 - '0') + 8 * (c2 - '0') + (c3 - '0');
+        static if (doCount)
+        {
+            return tuple(cast (dchar) (64 * (c1 - '0') + 8 * (c2 - '0') + (c3 - '0')), count);
+        }
+        else
+        {
+            return cast (dchar) (64 * (c1 - '0') + 8 * (c2 - '0') + (c3 - '0'));
+        }
     }
 
     dchar result;
@@ -4266,12 +4408,20 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
         case 'x':
             result  = getHexDigit() << 4;
             result |= getHexDigit();
+            static if (doCount)
+            {
+                count += 2;
+            }
             break;
         case 'u':
             result  = getHexDigit() << 12;
             result |= getHexDigit() << 8;
             result |= getHexDigit() << 4;
             result |= getHexDigit();
+            static if (doCount)
+            {
+                count += 4;
+            }
             break;
         case 'U':
             result  = getHexDigit() << 28;
@@ -4282,6 +4432,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
             result |= getHexDigit() << 8;
             result |= getHexDigit() << 4;
             result |= getHexDigit();
+            static if (doCount)
+            {
+                count += 8;
+            }
             break;
         default:
             throw parseError("Unknown escape character " ~ to!string(s.front));
@@ -4289,9 +4443,20 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
     if (s.empty)
         throw parseError("Unterminated escape sequence");
 
+    static if (doCount)
+    {
+        ++count;
+    }
     s.popFront();
 
-    return result;
+    static if (doCount)
+    {
+        return tuple(cast (dchar) result, count);
+    }
+    else
+    {
+        return cast (dchar) result;
+    }
 }
 
 @safe pure unittest
@@ -4344,7 +4509,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
 }
 
 // Undocumented
-Target parseElement(Target, Source)(ref Source s)
+auto parseElement(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum) &&
     isExactSomeString!Target)
 {
@@ -4355,15 +4520,44 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == '[')
-        return parse!Target(s);
+    {
+        static if (doCount)
+        {
+            return parse!(Target, Source, doCount)(s);
+        }
+        else
+        {
+            return parse!Target(s);
+        }
+    }
 
+    static if (doCount)
+    {
+        size_t count = 0;
+    }
     parseCheck!s('\"');
+    static if (doCount)
+    {
+        ++count;
+    }
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front == '\"')
     {
         s.popFront();
-        return result.data;
+        static if (doCount)
+        {
+            ++count;
+        }
+        static if (doCount)
+        {
+            return tuple(result.data, count);
+        }
+        else
+        {
+            return result.data;
+        }
+
     }
     while (true)
     {
@@ -4372,13 +4566,37 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         switch (s.front)
         {
             case '\"':
+                static if (doCount)
+                {
+                    ++count;
+                }
                 s.popFront();
-                return result.data;
+                static if (doCount)
+                {
+                    return tuple(result.data, count);
+                }
+                else
+                {
+                    return result.data;
+                }
             case '\\':
-                result.put(parseEscape(s));
+                static if (doCount)
+                {
+                    auto r = parseEscape!(typeof(s), doCount)(s);
+                    result.put(r[0]);
+                    count += r[1];
+                }
+                else
+                {
+                    result.put(parseEscape(s));
+                }
                 break;
             default:
                 result.put(s.front);
+                static if (doCount)
+                {
+                    ++count;
+                }
                 s.popFront();
                 break;
         }
@@ -4387,13 +4605,17 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
 }
 
 // ditto
-Target parseElement(Target, Source)(ref Source s)
+auto parseElement(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum) &&
     is(CharTypeOf!Target == dchar) && !is(Target == enum))
 {
     Unqual!Target c;
 
     parseCheck!s('\'');
+    static if (doCount)
+    {
+        ++count;
+    }
     if (s.empty)
         throw convError!(Source, Target)(s);
     if (s.front != '\\')
@@ -4404,16 +4626,26 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     else
         c = parseEscape(s);
     parseCheck!s('\'');
-
+    static if (doCount)
+    {
+        ++count;
+    }
     return c;
 }
 
 // ditto
-Target parseElement(Target, Source)(ref Source s)
+auto parseElement(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
 if (isInputRange!Source && isSomeChar!(ElementType!Source) &&
     !isSomeString!Target && !isSomeChar!Target)
 {
-    return parse!Target(s);
+    static if (doCount)
+    {
+        return parse!(Target, Source, doCount)(s);
+    }
+    else
+    {
+        return parse!Target(s);
+    }
 }
 
 // Use this when parsing a type that will ultimately be appended to a
