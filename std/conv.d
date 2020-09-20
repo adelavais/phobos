@@ -2282,6 +2282,84 @@ Lerr:
     }
 }
 
+@safe unittest
+{
+    import std.algorithm.comparison : equal;
+    import std.exception;
+    struct InputString
+    {
+        string _s;
+        @property auto front() { return _s.front; }
+        @property bool empty() { return _s.empty; }
+        void popFront() { _s.popFront(); }
+    }
+
+    auto s = InputString("trueFALSETrueFalsetRUEfALSE");
+    assert(parse!(bool, typeof(s), No.doCount)(s) == true);
+    assert(s.equal("FALSETrueFalsetRUEfALSE"));
+    assert(parse!(bool, typeof(s), No.doCount)(s) == false);
+    assert(s.equal("TrueFalsetRUEfALSE"));
+    assert(parse!(bool, typeof(s), No.doCount)(s) == true);
+    assert(s.equal("FalsetRUEfALSE"));
+    assert(parse!(bool, typeof(s), No.doCount)(s) == false);
+    assert(s.equal("tRUEfALSE"));
+    assert(parse!(bool, typeof(s), No.doCount)(s) == true);
+    assert(s.equal("fALSE"));
+    assert(parse!(bool, typeof(s), No.doCount)(s) == false);
+    assert(s.empty);
+
+    foreach (ss; ["tfalse", "ftrue", "t", "f", "tru", "fals", ""])
+    {
+        s = InputString(ss);
+        assertThrown!ConvException(parse!(bool, typeof(s), No.doCount)(s));
+    }
+}
+
+@safe unittest
+{
+    import std.algorithm.comparison : equal;
+    import std.exception;
+    struct InputString
+    {
+        string _s;
+        @property auto front() { return _s.front; }
+        @property bool empty() { return _s.empty; }
+        void popFront() { _s.popFront(); }
+    }
+
+    auto s = InputString("trueFALSETrueFalsetRUEfALSE");
+    auto r = parse!(bool, typeof(s), Yes.doCount)(s);
+    assert(r[0] == true);
+    assert(r[1] == 4);
+    assert(s.equal("FALSETrueFalsetRUEfALSE"));
+    r = parse!(bool, typeof(s), Yes.doCount)(s);
+    assert(r[0] == false);
+    assert(r[1] == 4);
+    assert(s.equal("TrueFalsetRUEfALSE"));
+    r = parse!(bool, typeof(s), Yes.doCount)(s);
+    assert(r[0] == true);
+    assert(r[1] == 4);
+    assert(s.equal("FalsetRUEfALSE"));
+    r = parse!(bool, typeof(s), Yes.doCount)(s);
+    assert(r[0] == false);
+    assert(r[1] == 4);
+    assert(s.equal("tRUEfALSE"));
+    r = parse!(bool, typeof(s), Yes.doCount)(s);
+    assert(r[0] == true);
+    assert(r[1] == 4);
+    assert(s.equal("fALSE"));
+    r = parse!(bool, typeof(s), Yes.doCount)(s);
+    assert(r[0] == false);
+    assert(r[1] == 4);
+    assert(s.empty);
+
+    foreach (ss; ["tfalse", "ftrue", "t", "f", "tru", "fals", ""])
+    {
+        s = InputString(ss);
+        assertThrown!ConvException(parse!(bool, typeof(s), Yes.doCount)(s));
+    }
+}
+
 /**
 Parses a character $(REF_ALTTEXT input range, isInputRange, std,range,primitives)
 to an integral value.
