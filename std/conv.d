@@ -2174,9 +2174,11 @@ This overload converts a character input range to a `bool`.
 Params:
     Target = the type to convert to
     source = the lvalue of an $(REF_ALTTEXT input range, isInputRange, std,range,primitives)
+    doCount = the flag for deciding to report the number of consumed characters
 
 Returns:
-    A `bool`
+    A `bool` if doCount is set to No.doCount
+    A `tuple` containing a `bool` and a `size_t` if doCount is set to Yes.doCount
 
 Throws:
     A $(LREF ConvException) if the range does not represent a `bool`.
@@ -2221,8 +2223,9 @@ if (isInputRange!Source &&
 
             static if (doCount)
             {
-                //import typecons: tuple;
-                return tuple(result, 4);
+                if (result)
+                    return tuple(result, 4);
+                return tuple(result, 5);
             }
             else
             {
@@ -2240,13 +2243,17 @@ Lerr:
     auto s = "true";
     bool b = parse!bool(s);
     assert(b);
+    
+    // for doCount
     auto s2 = "true";
     bool b2 = parse!(bool, string, No.doCount)(s2);
     assert(b2);
     auto s3 = "true";
     auto b3 = parse!(bool, string, Yes.doCount)(s3);
-    assert(b3[0]);
-    assert(b3[1] == 4);
+    assert(b3[0] && b3[1] == 4);
+    auto s4 = "falSE";
+    auto b4 = parse!(bool, string, Yes.doCount)(s4);
+    assert(!b4[0] && b4[1] == 5);
 }
 
 @safe unittest
@@ -2279,84 +2286,6 @@ Lerr:
     {
         s = InputString(ss);
         assertThrown!ConvException(parse!bool(s));
-    }
-}
-
-@safe unittest
-{
-    import std.algorithm.comparison : equal;
-    import std.exception;
-    struct InputString
-    {
-        string _s;
-        @property auto front() { return _s.front; }
-        @property bool empty() { return _s.empty; }
-        void popFront() { _s.popFront(); }
-    }
-
-    auto s = InputString("trueFALSETrueFalsetRUEfALSE");
-    assert(parse!(bool, typeof(s), No.doCount)(s) == true);
-    assert(s.equal("FALSETrueFalsetRUEfALSE"));
-    assert(parse!(bool, typeof(s), No.doCount)(s) == false);
-    assert(s.equal("TrueFalsetRUEfALSE"));
-    assert(parse!(bool, typeof(s), No.doCount)(s) == true);
-    assert(s.equal("FalsetRUEfALSE"));
-    assert(parse!(bool, typeof(s), No.doCount)(s) == false);
-    assert(s.equal("tRUEfALSE"));
-    assert(parse!(bool, typeof(s), No.doCount)(s) == true);
-    assert(s.equal("fALSE"));
-    assert(parse!(bool, typeof(s), No.doCount)(s) == false);
-    assert(s.empty);
-
-    foreach (ss; ["tfalse", "ftrue", "t", "f", "tru", "fals", ""])
-    {
-        s = InputString(ss);
-        assertThrown!ConvException(parse!(bool, typeof(s), No.doCount)(s));
-    }
-}
-
-@safe unittest
-{
-    import std.algorithm.comparison : equal;
-    import std.exception;
-    struct InputString
-    {
-        string _s;
-        @property auto front() { return _s.front; }
-        @property bool empty() { return _s.empty; }
-        void popFront() { _s.popFront(); }
-    }
-
-    auto s = InputString("trueFALSETrueFalsetRUEfALSE");
-    auto r = parse!(bool, typeof(s), Yes.doCount)(s);
-    assert(r[0] == true);
-    assert(r[1] == 4);
-    assert(s.equal("FALSETrueFalsetRUEfALSE"));
-    r = parse!(bool, typeof(s), Yes.doCount)(s);
-    assert(r[0] == false);
-    assert(r[1] == 4);
-    assert(s.equal("TrueFalsetRUEfALSE"));
-    r = parse!(bool, typeof(s), Yes.doCount)(s);
-    assert(r[0] == true);
-    assert(r[1] == 4);
-    assert(s.equal("FalsetRUEfALSE"));
-    r = parse!(bool, typeof(s), Yes.doCount)(s);
-    assert(r[0] == false);
-    assert(r[1] == 4);
-    assert(s.equal("tRUEfALSE"));
-    r = parse!(bool, typeof(s), Yes.doCount)(s);
-    assert(r[0] == true);
-    assert(r[1] == 4);
-    assert(s.equal("fALSE"));
-    r = parse!(bool, typeof(s), Yes.doCount)(s);
-    assert(r[0] == false);
-    assert(r[1] == 4);
-    assert(s.empty);
-
-    foreach (ss; ["tfalse", "ftrue", "t", "f", "tru", "fals", ""])
-    {
-        s = InputString(ss);
-        assertThrown!ConvException(parse!(bool, typeof(s), Yes.doCount)(s));
     }
 }
 
