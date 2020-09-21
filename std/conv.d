@@ -3874,9 +3874,11 @@ spells `"null"`. This function is case insensitive.
 Params:
     Target = the type to convert to
     s = the lvalue of an $(REF_ALTTEXT input range, isInputRange, std,range,primitives)
+    doCount = the flag for deciding to report the number of consumed characters
 
 Returns:
-    `null`
+    `null` if doCount is set to No.doCount
+    A `tuple` containing `null` and a `size_t` if doCount is set to Yes.doCount
 
 Throws:
     A $(LREF ConvException) if the range doesn't represent `null`.
@@ -3924,6 +3926,7 @@ if (isInputRange!Source &&
 
     auto m = "maybe";
     assertThrown!ConvException(parse!NullType(m));
+    assertThrown!ConvException(parse!(NullType, string, Yes.doCount)(m));
     assert(m == "maybe");  // m shouldn't change on failure
 
     auto s = "NULL";
