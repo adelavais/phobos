@@ -4608,15 +4608,11 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
     if (s.empty)
         throw parseError("Unterminated escape sequence");
 
-    static if (doCount)
-    {
-        ++count;
-    }
     s.popFront();
 
     static if (doCount)
     {
-        return tuple(cast (dchar) result, count);
+        return tuple(cast (dchar) result, ++count);
     }
     else
     {
@@ -4634,6 +4630,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
          // https://issues.dlang.org/show_bug.cgi?id=9621 (Named Character Entities)
         //`\&amp;`, `\&quot;`,
     ];
+    string[] copyS1 = s1 ~ s1[0..0];
 
     const(dchar)[] s2 = [
         '\"', '\'', '\?', '\\', '\a', '\b', '\f', '\n', '\r', '\t', '\v', //Normal escapes
@@ -4648,6 +4645,9 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
     {
         assert(s2[i] == parseEscape(s1[i]));
         assert(s1[i].empty);
+
+        assert(tuple(s2[i], copyS1[i].length) == parseEscape!(string, Yes.doCount)(copyS1[i]));
+        assert(copyS1[i].empty);
     }
 }
 
@@ -4670,7 +4670,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
         `\U123123` //Premature hex end
     ];
     foreach (s ; ss)
+    {
         assertThrown!ConvException(parseEscape(s));
+        assertThrown!ConvException(parseEscape!(string, Yes.doCount)(s));
+    }
 }
 
 // Undocumented
@@ -4712,8 +4715,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         s.popFront();
         static if (doCount)
         {
-            ++count;
-            return tuple(result.data, count);
+            return tuple(result.data, ++count);
         }
         else
         {
@@ -4728,14 +4730,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         switch (s.front)
         {
             case '\"':
-                static if (doCount)
-                {
-                    ++count;
-                }
                 s.popFront();
                 static if (doCount)
                 {
-                    return tuple(result.data, count);
+                    return tuple(result.data, ++count);
                 }
                 else
                 {
@@ -4780,9 +4778,9 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     }
     if (s.empty)
         throw convError!(Source, Target)(s);
-    static if (doCount) // for the following if-else sequence
+    static if (doCount)
     {
-        ++count;
+        ++count; // for the following if-else sequence$
     }
     if (s.front != '\\')
     {
@@ -4794,8 +4792,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     parseCheck!s('\'');
     static if (doCount)
     {
-        ++count;
-        return tuple(c, count);
+        return tuple(c, ++count);
     }
     else
     {
