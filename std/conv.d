@@ -4023,14 +4023,10 @@ if (isSomeString!Source && !is(Source == enum) &&
         throw convError!(Source, Target)(s);
     if (s.front == rbracket)
     {
-        static if (doCount)
-        {
-            ++count;
-        }
         s.popFront();
         static if (doCount)
         {
-            return tuple(result.data, count);
+            return tuple(result.data, ++count);
         }
         else
         {
@@ -4193,6 +4189,7 @@ if (isSomeString!Source && !is(Source == enum) &&
         "unicode \u65E5 sun",
         "very long \U000065E5 sun"
     ]`;
+
     //Note: escaped characters purposefully replaced and isolated to guarantee
     //there are no typos in the escape syntax
     string[] s2 = [
@@ -4336,7 +4333,7 @@ Lfewerr:
  *
  * Returns:
  *     An associative array of type `Target` if doCount is set to No.doCount
- *     A `tuple` containing an associative·array·of·type·`Target` and a `size_t`
+ *     A `tuple` containing an associative array of type `Target` and a `size_t`
  *     if doCount is set to Yes.doCount
  */
 auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[',
@@ -4472,7 +4469,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source))
     if (s.empty)
         throw parseError("Unterminated escape sequence");
 
-    // consumes 1 Element of type Source
+    // consumes 1 element from Source
     dchar getHexDigit()(ref Source s_ = s)  // workaround
     {
         import std.ascii : isAlpha, isHexDigit;
@@ -4699,14 +4696,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         }
     }
 
-    static if (doCount)
-    {
-        size_t count = 0;
-    }
     parseCheck!s('\"');
     static if (doCount)
     {
-        ++count;
+        size_t count = 1;
     }
     if (s.empty)
         throw convError!(Source, Target)(s);
@@ -4780,7 +4773,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         throw convError!(Source, Target)(s);
     static if (doCount)
     {
-        ++count; // for the following if-else sequence$
+        ++count; // for the following if-else sequence
     }
     if (s.front != '\\')
     {
