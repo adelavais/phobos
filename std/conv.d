@@ -2897,7 +2897,6 @@ do
 
     auto str = ";";
     assertThrown(str.parse!uint(16));
-
     assertThrown(str.parse!(uint, string, Yes.doCount)(16));
 }
 
@@ -3996,9 +3995,11 @@ package auto skipWS(R, Flag!"doCount" doCount = No.doCount)(ref R r)
  *     lbracket = the character that starts the array
  *     rbracket = the character that ends the array
  *     comma = the character that separates the elements of the array
+ *     doCount = the flag for deciding to report the number of consumed characters
  *
  * Returns:
- *     An array of type `Target`
+ *     An array of type `Target` if doCount is set to No.doCount
+ *     A `tuple` containing an array·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
  */
 auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[', dchar rbracket = ']', dchar comma = ',')
 if (isSomeString!Source && !is(Source == enum) &&
@@ -4107,16 +4108,35 @@ if (isSomeString!Source && !is(Source == enum) &&
     assert(s1.parse!(int[]) == [1,2]);
     assert(s2.parse!(int[]) == [1,2]);
 
+    s0 = "[1,2, ]";
+    auto len0 = s0.length;
+    s1 = "[1,2, \t\v\r\n]";
+    auto len1 = s1.length;
+    s2 = "[1,2]";
+    auto len2 = s2.length;
+    assert(s0.parse!(int[], string, Yes.doCount) == tuple([1,2], len0));
+    assert(s1.parse!(int[], string, Yes.doCount) == tuple([1,2], len1));
+    assert(s2.parse!(int[], string, Yes.doCount) == tuple([1,2], len2));
+
     string s3 = `["a","b",]`;
     string s4 = `["a","b"]`;
     assert(s3.parse!(string[]) == ["a","b"]);
     assert(s4.parse!(string[]) == ["a","b"]);
+
+    s3 = `["a","b",]`;
+    auto len3 = s3.length;
+    assert(s3.parse!(string[], string, Yes.doCount) == tuple(["a","b"], len3));
 
     import std.exception : assertThrown;
     string s5 = "[,]";
     string s6 = "[, \t,]";
     assertThrown!ConvException(parse!(string[])(s5));
     assertThrown!ConvException(parse!(int[])(s6));
+
+    s5 = "[,]";
+    s6 = "[,·\t,]";
+    assertThrown!ConvException(parse!(string[], string, Yes.doCount)(s5));
+    assertThrown!ConvException(parse!(string[], string, Yes.doCount)(s6));
 }
 
 @safe unittest
@@ -4144,7 +4164,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     assert( ia == ia2);
 }
 
-@safe pure unittest
+@safe /*pure*/ unittest
 {
     import std.exception;
 
@@ -4154,6 +4174,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     {
         auto ss = s[0 .. i];
         assertThrown!ConvException(parse!(int[])(ss));
+        assertThrown!ConvException(parse!(int[], string, Yes.doCount)(ss));
     }
     int[] arr = parse!(int[])(s);
 }
@@ -4170,7 +4191,6 @@ if (isSomeString!Source && !is(Source == enum) &&
         "unicode \u65E5 sun",
         "very long \U000065E5 sun"
     ]`;
-
     //Note: escaped characters purposefully replaced and isolated to guarantee
     //there are no typos in the escape syntax
     string[] s2 = [
@@ -4182,8 +4202,10 @@ if (isSomeString!Source && !is(Source == enum) &&
         "unicode 日 sun",
         "very long 日 sun"
     ];
+    string s3 = s1.save;
     assert(s2 == parse!(string[])(s1));
     assert(s1.empty);
+    assert(tuple(s2, s3.length) == parse!(string[], string, Yes.doCount)(s3));
 }
 
 /// ditto
@@ -4282,16 +4304,22 @@ Lfewerr:
     auto s1 = "[1,2,3,4]";
     auto sa1 = parse!(int[4])(s1);
     assert(sa1 == [1,2,3,4]);
+    s1 = "[1,2,3,4]";
+    assert(tuple([1,2,3,4], s1.length) == parse!(int[4], string, Yes.doCount)(s1));
 
     auto s2 = "[[1],[2,3],[4]]";
     auto sa2 = parse!(int[][3])(s2);
     assert(sa2 == [[1],[2,3],[4]]);
+    s2 = "[[1],[2,3],[4]]";
+    assert(tuple([[1],[2,3],[4]], s2.length) == parse!(int[][3], string, Yes.doCount)(s2));
 
     auto s3 = "[1,2,3]";
     assertThrown!ConvException(parse!(int[4])(s3));
+    assertThrown!ConvException(parse!(int[4], string, Yes.doCount)(s3));
 
     auto s4 = "[1,2,3,4,5]";
     assertThrown!ConvException(parse!(int[4])(s4));
+    assertThrown!ConvException(parse!(int[4], string, Yes.doCount)(s4));
 }
 
 /**
