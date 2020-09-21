@@ -3734,9 +3734,11 @@ Parsing one character off a range returns the first element and calls `popFront`
 Params:
     Target = the type to convert to
     s = the lvalue of an $(REF_ALTTEXT input range, isInputRange, std,range,primitives)
+    doCount = the flag for deciding to report the number of consumed characters
 
 Returns:
-    A character of type `Target`
+    A character of type `Target` if doCount is set to No.doCount
+    A `tuple` containing a character·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
 
 Throws:
     A $(LREF ConvException) if the range is empty.
@@ -3791,8 +3793,7 @@ if (isSomeString!Source && !is(Source == enum) &&
                 assert(s == "aa");
                 assert(parse!(Char, typeof(s), No.doCount)(s) == 'a');
                 assert(s == "a");
-                auto r = parse!(Char, typeof(s), Yes.doCount)(s);
-                assert(r[0] == 'a' && r[1] == 1 && s == "");
+                assert(parse!(Char, typeof(s), Yes.doCount)(s) == tuple('a', 1) && s == "");
             }
         }}
     }
@@ -3852,8 +3853,13 @@ if (!isSomeString!Source && isInputRange!Source && isSomeChar!(ElementType!Sourc
     assert(parse!bool(f) == false);
     assert(f == " killer whale"d);
 
+    f = "False killer whale"d;
+    assert(parse!(bool, dstring, Yes.doCount)(f) == tuple(false, 5));
+    assert(f == " killer whale"d);
+
     auto m = "maybe";
     assertThrown!ConvException(parse!bool(m));
+    assertThrown!ConvException(parse!(bool, string, Yes.doCount)(m));
     assert(m == "maybe");  // m shouldn't change on failure
 
     auto s = "true";
