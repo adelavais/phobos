@@ -2298,7 +2298,7 @@ Params:
 
 Returns:
     A number of type `Target` if doCount is set to No.doCount
-    A `tuple` containing a number·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
+    A `tuple` containing a number of type `Target` and a `size_t` if doCount is set to Yes.doCount
 
 Throws:
     A $(LREF ConvException) If an overflow occurred during conversion or
@@ -2910,7 +2910,7 @@ do
  *
  * Returns:
  *     An `enum` of type `Target` if doCount is set to No.doCount
- *     A `tuple` containing an `enum`·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
+ *     A `tuple` containing an `enum` of type `Target` and a `size_t` if doCount is set to Yes.doCount
  *
  * Throws:
  *     A $(LREF ConvException) if type `Target` does not have a member
@@ -3018,7 +3018,7 @@ if (isSomeString!Source && !is(Source == enum) &&
  *
  * Returns:
  *     A floating point number of type `Target` if doCount is set to No.doCount
- *     A `tuple` containing a floating·point·number·of·type·`Target` and a `size_t`
+ *     A `tuple` containing a floating point number of·type `Target` and a `size_t`
  *     if doCount is set to Yes.doCount
  *
  * Throws:
@@ -3358,7 +3358,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         import std.math : ldexp;
 
         // Exponent is power of 2, not power of 10
-        ldval = ldexp(ldval, exp);
+        ldval = ldexp(ldval,exp);
     }
     else if (ldval)
     {
@@ -3694,9 +3694,9 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         assert(x == 0.0);
     }
     {
-        auto s = "0·";
+        auto s = "0 ";
         auto x = parse!(double, string, Yes.doCount)(s);
-        assert(s == "·");
+        assert(s == " ");
         assert(x == tuple(0.0, 1));
     }
 
@@ -3737,7 +3737,7 @@ Params:
 
 Returns:
     A character of type `Target` if doCount is set to No.doCount
-    A `tuple` containing a character·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
+    A `tuple` containing a character of type `Target` and a `size_t` if doCount is set to Yes.doCount
 
 Throws:
     A $(LREF ConvException) if the range is empty.
@@ -3999,7 +3999,7 @@ package auto skipWS(R, Flag!"doCount" doCount = No.doCount)(ref R r)
  *
  * Returns:
  *     An array of type `Target` if doCount is set to No.doCount
- *     A `tuple` containing an array·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
+ *     A `tuple` containing an array of type `Target` and a `size_t` if doCount is set to Yes.doCount
  */
 auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[', dchar rbracket = ']', dchar comma = ',')
 if (isSomeString!Source && !is(Source == enum) &&
@@ -4070,8 +4070,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     parseCheck!s(rbracket);
     static if (doCount)
     {
-         ++count;
-        return tuple(result.data, count);
+        return tuple(result.data, ++count);
     }
     else
     {
@@ -4164,12 +4163,13 @@ if (isSomeString!Source && !is(Source == enum) &&
     assert( ia == ia2);
 }
 
-@safe /*pure*/ unittest
+@safe pure unittest
 {
     import std.exception;
 
     //Check proper failure
     auto s = "[ 1 , 2 , 3 ]";
+    auto s2 = s.save;
     foreach (i ; 0 .. s.length-1)
     {
         auto ss = s[0 .. i];
@@ -4177,6 +4177,8 @@ if (isSomeString!Source && !is(Source == enum) &&
         assertThrown!ConvException(parse!(int[], string, Yes.doCount)(ss));
     }
     int[] arr = parse!(int[])(s);
+    auto arr2 = parse!(int[], string, Yes.doCount)(s2);
+    arr = arr2[0];
 }
 
 @safe pure unittest
@@ -4238,8 +4240,7 @@ if (isExactSomeString!Source &&
             s.popFront();
             static if (doCount)
             {
-                ++count;
-                return tuple(result, count);
+                return tuple(result, ++count);
             }
             else
             {
@@ -4273,16 +4274,14 @@ if (isExactSomeString!Source &&
         s.popFront();
         static if (doCount)
         {
-            ++count;
-            count += skipWS!(Source, Yes.doCount)(s);
+            count += 1 + skipWS!(Source, Yes.doCount)(s);
         }
         skipWS(s);
     }
     parseCheck!s(rbracket);
     static if (doCount)
     {
-        ++count;
-        return tuple(result, count);
+        return tuple(result, ++count);
     }
     else
     {
@@ -4333,9 +4332,12 @@ Lfewerr:
  *     rbracket = the character that ends the associative array
  *     keyval = the character that associates the key with the value
  *     comma = the character that separates the elements of the associative array
+ *     doCount = the flag for deciding to report the number of consumed characters
  *
  * Returns:
- *     An associative array of type `Target`
+ *     An associative array of type `Target` if doCount is set to No.doCount
+ *     A `tuple` containing an associative·array·of·type·`Target` and a `size_t`
+ *     if doCount is set to Yes.doCount
  */
 auto parse(Target, Source, Flag!"doCount" doCount = No.doCount)(ref Source s, dchar lbracket = '[',
                              dchar rbracket = ']', dchar keyval = ':', dchar comma = ',')
@@ -4363,8 +4365,7 @@ if (isSomeString!Source && !is(Source == enum) &&
         s.popFront();
         static if (doCount)
         {
-            ++count;
-            return tuple(result, count);
+            return tuple(result, ++count);
         }
         else
         {
@@ -4410,8 +4411,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     parseCheck!s(rbracket);
     static if (doCount)
     {
-        ++count;
-        return tuple(result, count);
+        return tuple(result, ++count);
     }
     else
     {
@@ -4423,16 +4423,24 @@ if (isSomeString!Source && !is(Source == enum) &&
 @safe pure unittest
 {
     auto s1 = "[1:10, 2:20, 3:30]";
+    auto copyS1 = s1.save;
     auto aa1 = parse!(int[int])(s1);
     assert(aa1 == [1:10, 2:20, 3:30]);
+    assert(tuple([1:10, 2:20, 3:30], copyS1.length) == parse!(int[int], string, Yes.doCount)(copyS1));
 
     auto s2 = `["aaa":10, "bbb":20, "ccc":30]`;
+    auto copyS2 = s2.save;
     auto aa2 = parse!(int[string])(s2);
     assert(aa2 == ["aaa":10, "bbb":20, "ccc":30]);
+    assert(tuple(["aaa":10, "bbb":20, "ccc":30], copyS2.length) ==
+        parse!(int[string], string, Yes.doCount)(copyS2));
 
     auto s3 = `["aaa":[1], "bbb":[2,3], "ccc":[4,5,6]]`;
+    auto copyS3 = s3.save;
     auto aa3 = parse!(int[][string])(s3);
     assert(aa3 == ["aaa":[1], "bbb":[2,3], "ccc":[4,5,6]]);
+    assert(tuple(["aaa":[1], "bbb":[2,3], "ccc":[4,5,6]], copyS3.length) ==
+        parse!(int[][string], string, Yes.doCount)(copyS3));
 }
 
 @safe pure unittest
@@ -4441,12 +4449,16 @@ if (isSomeString!Source && !is(Source == enum) &&
 
     //Check proper failure
     auto s = "[1:10, 2:20, 3:30]";
+    auto s2 = s.save;
     foreach (i ; 0 .. s.length-1)
     {
         auto ss = s[0 .. i];
         assertThrown!ConvException(parse!(int[int])(ss));
+        assertThrown!ConvException(parse!(int[int], string, Yes.doCount)(ss));
     }
     int[int] aa = parse!(int[int])(s);
+    auto aa2 = parse!(int[int], string, Yes.doCount)(s2);
+    aa  = aa2[0];
 }
 
 private auto parseEscape(Source, Flag!"doCount" doCount = No.doCount)(ref Source s)
