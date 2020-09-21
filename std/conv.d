@@ -2296,9 +2296,11 @@ to an integral value.
 Params:
     Target = the integral type to convert to
     s = the lvalue of an input range
+    doCount = the flag for deciding to report the number of consumed characters
 
 Returns:
-    A number of type `Target`
+    A number of type `Target` if doCount is set to No.doCount
+    A `tuple` containing a number·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
 
 Throws:
     A $(LREF ConvException) If an overflow occurred during conversion or
@@ -2316,7 +2318,9 @@ if (isSomeChar!(ElementType!Source) &&
             auto v = .parse!(Select!(Target.min < 0, int, uint), Source, Yes.doCount)(s);
             auto result = ()@trusted{ return cast(Target) v[0]; }();
             if (result == v[0])
-                return v; // todo adela era result
+            {
+                return tuple(result, v[1]);
+            }
         }
         else
         {
@@ -2469,6 +2473,18 @@ Lerr:
     auto b = parse!double(test);
     assert(b == 76.14);
     assert(test == "");
+
+    // for doCount
+    string test2 = "123 \t  76.14";
+    auto a2 = parse!(uint, string, Yes.doCount)(test2);
+    assert(a2[0] == 123 && a2[1] == 3);
+    assert(test2 == " \t  76.14");// parse bumps string
+    test2 = tr(test2, " \t\n\r", "", "d"); // skip ws
+    assert(test2 == "76.14");
+    auto b2 = parse!(double, string, Yes.doCount)(test2);
+    assert(b2[0] == 76.14 && b2[1] == 5);
+    assert(test2 == "");
+
 }
 
 @safe pure unittest
@@ -2677,6 +2693,11 @@ Lerr:
     assertCTFEable!({ string s =  "1234abc"; assert(parse! int(s) ==  1234 && s == "abc"); });
     assertCTFEable!({ string s = "-1234abc"; assert(parse! int(s) == -1234 && s == "abc"); });
     assertCTFEable!({ string s =  "1234abc"; assert(parse!uint(s) ==  1234 && s == "abc"); });
+
+    // for doCount
+    assertCTFEable!({ string s =  "1234abc"; assert(parse!( int, string, Yes.doCount)(s) == tuple( 1234, 4) && s == "abc"); });
+    assertCTFEable!({ string s = "-1234abc"; assert(parse!( int, string, Yes.doCount)(s) == tuple(-1234, 5) && s == "abc"); });
+    assertCTFEable!({ string s =  "1234abc"; assert(parse!(uint, string, Yes.doCount)(s) == tuple( 1234 ,4) && s == "abc"); });
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=13931
@@ -2702,6 +2723,10 @@ Lerr:
     }
     auto input = StrInputRange("777");
     assert(parse!int(input) == 777);
+
+    // for doCount
+    auto input2 = StrInputRange("777");
+    assert(parse!(int, StrInputRange, Yes.doCount)(input2) == tuple(777, 3));
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=9621
@@ -2709,6 +2734,11 @@ Lerr:
 {
     string s1 = "[ \"\\141\", \"\\0\", \"\\41\", \"\\418\" ]";
     assert(parse!(string[])(s1) == ["a", "\0", "!", "!8"]);
+
+    // for doCount
+    s1 = "[ \"\\141\", \"\\0\", \"\\41\", \"\\418\" ]";
+    auto len = s1.length;
+    assert(parse!(string[], string, Yes.doCount)(s1) == tuple(["a", "\0", "!", "!8"], len));
 }
 
 /// ditto
@@ -2818,6 +2848,9 @@ do
         assert(parse!int(s = "0", i) == 0);
         assert(parse!int(s = "1", i) == 1);
         assert(parse!byte(s = "10", i) == i);
+        assert(parse!(int, string, Yes.doCount)(s = "0", i) == tuple(0, 1));
+        assert(parse!(int, string, Yes.doCount)(s = "1", i) == tuple(1, 1));
+        assert(parse!(byte, string, Yes.doCount)(s = "10", i) == tuple(i, 2));
     }
 
     assert(parse!int(s = "0011001101101", 2) == 0b0011001101101);
@@ -2838,6 +2871,12 @@ do
     auto u = parse!uint(r, 16);
     assert(u == 42);
     assert(r.front == '!');
+
+    // for doCount
+    auto r2 = cycle("2A!");
+    auto u2 = parse!(uint, typeof(r2), Yes.doCount)(r2, 16);
+    assert(u2[0] == 42 && u2[1] == 2);
+    assert(r2.front == '!');
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=13163
@@ -2853,6 +2892,10 @@ do
 {
     auto str = "0=\x00\x02\x55\x40&\xff\xf0\n\x00\x04\x55\x40\xff\xf0~4+10\n";
     assert(parse!uint(str) == 0);
+
+    // for doCount
+    str = "0=\x00\x02\x55\x40&\xff\xf0\n\x00\x04\x55\x40\xff\xf0~4+10\n";
+    assert(parse!(uint, string, Yes.doCount)(str) == tuple(0, 1));
 }
 
 // https://issues.dlang.org/show_bug.cgi?id=18248
@@ -2862,6 +2905,9 @@ do
 
     auto str = ";";
     assertThrown(str.parse!uint(16));
+
+    // for doCount
+    assertThrown(str.parse!(uint, string, Yes.doCount)(16));
 }
 
 /**
