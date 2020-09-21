@@ -2243,8 +2243,6 @@ Lerr:
     auto s = "true";
     bool b = parse!bool(s);
     assert(b);
-    
-    // for doCount
     auto s2 = "true";
     bool b2 = parse!(bool, string, No.doCount)(s2);
     assert(b2);
@@ -2474,7 +2472,6 @@ Lerr:
     assert(b == 76.14);
     assert(test == "");
 
-    // for doCount
     string test2 = "123 \t  76.14";
     auto a2 = parse!(uint, string, Yes.doCount)(test2);
     assert(a2[0] == 123 && a2[1] == 3);
@@ -2694,7 +2691,6 @@ Lerr:
     assertCTFEable!({ string s = "-1234abc"; assert(parse! int(s) == -1234 && s == "abc"); });
     assertCTFEable!({ string s =  "1234abc"; assert(parse!uint(s) ==  1234 && s == "abc"); });
 
-    // for doCount
     assertCTFEable!({ string s =  "1234abc"; assert(parse!( int, string, Yes.doCount)(s) == tuple( 1234, 4) && s == "abc"); });
     assertCTFEable!({ string s = "-1234abc"; assert(parse!( int, string, Yes.doCount)(s) == tuple(-1234, 5) && s == "abc"); });
     assertCTFEable!({ string s =  "1234abc"; assert(parse!(uint, string, Yes.doCount)(s) == tuple( 1234 ,4) && s == "abc"); });
@@ -2724,7 +2720,6 @@ Lerr:
     auto input = StrInputRange("777");
     assert(parse!int(input) == 777);
 
-    // for doCount
     auto input2 = StrInputRange("777");
     assert(parse!(int, StrInputRange, Yes.doCount)(input2) == tuple(777, 3));
 }
@@ -2735,7 +2730,6 @@ Lerr:
     string s1 = "[ \"\\141\", \"\\0\", \"\\41\", \"\\418\" ]";
     assert(parse!(string[])(s1) == ["a", "\0", "!", "!8"]);
 
-    // for doCount
     s1 = "[ \"\\141\", \"\\0\", \"\\41\", \"\\418\" ]";
     auto len = s1.length;
     assert(parse!(string[], string, Yes.doCount)(s1) == tuple(["a", "\0", "!", "!8"], len));
@@ -2872,7 +2866,6 @@ do
     assert(u == 42);
     assert(r.front == '!');
 
-    // for doCount
     auto r2 = cycle("2A!");
     auto u2 = parse!(uint, typeof(r2), Yes.doCount)(r2, 16);
     assert(u2[0] == 42 && u2[1] == 2);
@@ -2893,7 +2886,6 @@ do
     auto str = "0=\x00\x02\x55\x40&\xff\xf0\n\x00\x04\x55\x40\xff\xf0~4+10\n";
     assert(parse!uint(str) == 0);
 
-    // for doCount
     str = "0=\x00\x02\x55\x40&\xff\xf0\n\x00\x04\x55\x40\xff\xf0~4+10\n";
     assert(parse!(uint, string, Yes.doCount)(str) == tuple(0, 1));
 }
@@ -2906,7 +2898,6 @@ do
     auto str = ";";
     assertThrown(str.parse!uint(16));
 
-    // for doCount
     assertThrown(str.parse!(uint, string, Yes.doCount)(16));
 }
 
