@@ -2907,9 +2907,11 @@ do
  * Params:
  *     Target = the `enum` type to convert to
  *     s = the lvalue of the range to _parse
+ *     doCount = the flag for deciding to report the number of consumed characters
  *
  * Returns:
- *     An `enum` of type `Target`
+ *     An `enum` of type `Target` if doCount is set to No.doCount
+ *     A `tuple` containing an `enum`·of·type·`Target` and a `size_t` if doCount is set to Yes.doCount
  *
  * Throws:
  *     A $(LREF ConvException) if type `Target` does not have a member
@@ -2963,9 +2965,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     auto str2 = "a";
     assert(parse!(EnumType, string, No.doCount)(str2) == EnumType.a);
     auto str3 = "a";
-    auto r = parse!(EnumType, string, Yes.doCount)(str3);
-    assert(r[0] == EnumType.a);
-    assert(r[1] == 1);
+    assert(parse!(EnumType, string, Yes.doCount)(str3) == tuple(EnumType.a, 1));
 
 }
 
@@ -3006,8 +3006,7 @@ if (isSomeString!Source && !is(Source == enum) &&
     auto s2 = "member1111";
     assert(parse!(A, string, No.doCount)(s2) == A.member111 && s2 == "1");
     auto s3 = "member1111";
-    auto r = parse!(A, string, Yes.doCount)(s3);
-    assert(r[0] == A.member111 && r[1] == 9 && s3 == "1");
+    assert(parse!(A, string, Yes.doCount)(s3) == tuple(A.member111, 9) && s3 == "1");
 }
 
 /**
@@ -3016,9 +3015,12 @@ if (isSomeString!Source && !is(Source == enum) &&
  * Params:
  *     Target = a floating point type
  *     source = the lvalue of the range to _parse
+ *     doCount = the flag for deciding to report the number of consumed characters
  *
  * Returns:
- *     A floating point number of type `Target`
+ *     A floating point number of type `Target` if doCount is set to No.doCount
+ *     A `tuple` containing a floating·point·number·of·type·`Target` and a `size_t`
+ *     if doCount is set to Yes.doCount
  *
  * Throws:
  *     A $(LREF ConvException) if `source` is empty, if no number could be
