@@ -3530,9 +3530,7 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
     assert(parse!(real, string, No.doCount)(full2) == x);
     string full3 = "0x1.FAFAFAFAFAFAFAFAFAFAFAFAFAFAFAFAAFAAFAFAFAFAFAFAFAP-252";
     auto len2 = full3.length;
-    auto res2 = parse!(real, string, Yes.doCount)(full3);
-    assert(res2[0] == x);
-    assert(res2[1] == len2);
+    assert(parse!(real, string, Yes.doCount)(full3) == tuple(x, len2));
 }
 
 // Tests for the double implementation
@@ -3550,6 +3548,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         //1 bit is implicit
         assert(((*cast(ulong*)&x) & 0x000F_FFFF_FFFF_FFFF) == 0xA_BCDE_F012_3456);
         assert(strtod("0x1ABCDEF0123456p10", null) == x);
+        
+        s = "0x1A_BCDE_F012_3456p10";
+        auto len = s.length;
+        assert(parse!(real, string, Yes.doCount)(s) == tuple(x, len));
 
         //Should be parsed exactly: 10 bit mantissa
         s = "0x3FFp10";
@@ -3606,6 +3608,10 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         x = parse!real(s);
         assert(x == 0);
         assert(strtod("0x1FFFFFFFFFFFFFp-2000", null) == x);
+
+        s = "0x1FFFFFFFFFFFFFp-2000";
+        len = s.length;
+        assert(parse!(real, string, Yes.doCount)(s) == tuple(x, len));
     }
 }
 
@@ -3687,6 +3693,12 @@ if (isInputRange!Source && isSomeChar!(ElementType!Source) && !is(Source == enum
         auto x = parse!double(s);
         assert(s == " ");
         assert(x == 0.0);
+    }
+    {
+        auto s = "0·";
+        auto x = parse!(double, string, Yes.doCount)(s);
+        assert(s == "·");
+        assert(x == tuple(0.0, 1));
     }
 
     // https://issues.dlang.org/show_bug.cgi?id=3369
